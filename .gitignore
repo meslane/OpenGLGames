@@ -1,0 +1,11 @@
+NetPongServer
+*.vcxproj
+*.vcsproj.filters
+**/x64/
+**/Debug/
+Pong/Libraries
+**/.vs/
+**/glad.c
+*.filters
+*.user
+*.sln
