@@ -1,0 +1,7 @@
+1. Copy glad.c into project folder and add to Source Files in Visual Studio
+2. Select x64 for build in Visual Studio
+3. Go to Project > Properties and select All Platorms in the Platform drop down menu
+4. In the same window, go to VC++ Directories and select the Include Directories dropdown, insert a path to the include folder found in Libraries
+5. Repeat the above step for the Library Directories dropdown, but for the lib folder instead
+6. In the same window, go to Linker > Input and select the Additional Dependencies dropdown, type "glfw3.lib" and "opengl32.lib" without the quotes
+7. Apply and exit, you are done
