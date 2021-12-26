@@ -7,6 +7,7 @@
 
 #include "../Include/shader.h"
 #include "../Include/image.h"
+#include "../Include/draw.h"
 
 #define H 72
 #define W 128
@@ -51,9 +52,6 @@ typedef struct Keys {
 	char right;
 }keys;
 
-gameArray game;
-rotArray rotationMatrix;
-unsigned char playfield[22][10] = { 0 };
 keys keypress;
 
 void drawSquare(gameArray* game, unsigned char left, unsigned char bottom, unsigned char pixel[3]) {
@@ -70,6 +68,28 @@ void drawPlayfield(gameArray* g, unsigned char field[22][10]) {
 	for (unsigned int i = 0; i < 10; i++) {
 		for (unsigned int j = 0; j < 22; j++) {
 			drawSquare(g, 50 + (3 * i), 3 + (3 * j), tetColors[field[j][i]]);
+		}
+	}
+}
+
+void drawNext(gameArray* g, rotArray r, unsigned char pieceType) {
+	for (char i = 0; i < 6; i++) { //x
+		for (char j = 0; j < 4; j++) { //y
+			drawSquare(g, 94 + (3 * i), 44 + (3 * j), tetColors[0]);
+		}
+	}
+
+	
+	for (char i = 0; i < 4; i++) { //x
+		for (char j = 0; j < 4; j++) { //y
+			if (r.matrix[(4 * pieceType) + j][i] != 0) {
+				if (pieceType == 1 || pieceType == 4) {
+					drawSquare(g, 97 + (3 * i), 44 + (3 * j), tetColors[pieceType]);
+				} 
+				else {
+					drawSquare(g, 97 + (3 * i), 47 + (3 * j), tetColors[pieceType]);
+				}
+			}
 		}
 	}
 }
@@ -172,24 +192,59 @@ void popRow(unsigned char field[22][10], unsigned char row) {
 	}
 }
 
-void testFull(unsigned char field[22][10]) {
-	for (unsigned int y = 0; y < 22; y++) {
-		for (unsigned int x = 0; x < 10; x++) {
-			if (field[y][x] == 0) {
-				break;
-			}
-			if (x == 9) {
-				popRow(field, y);
+void popIfFull(unsigned char field[22][10], unsigned short* score) {
+	unsigned char total = 0;
+
+	for (unsigned int i = 0; i < 4; i++) {
+		for (unsigned int y = 0; y < 22; y++) {
+			for (unsigned int x = 0; x < 10; x++) {
+				if (field[y][x] == 0) {
+					break;
+				}
+				if (x == 9) {
+					popRow(field, y);
+					total++;
+				}
 			}
 		}
 	}
+
+	switch (total) { //scoring
+		case 1:
+			total = 4;
+			break;
+		case 2:
+			total = 10;
+			break;
+		case 3:
+			total = 30;
+			break;
+		case 4:
+			total = 120;
+			break;
+		default:
+			break;
+	}
+
+	*score = *score + total;
 } 
 
-void spawnPiece(piece* p) {
-	p->type = (rand() % 7) + 1;
+void spawnPiece(piece* p, unsigned char type) {
+	p->type = type;
 	p->bottom = 20;
 	p->left = 4;
 	p->rot = 0;
+}
+
+float normalizeCoord(unsigned char coord, int dimension) {
+	return (((float)coord) / ((float)dimension / 2)) - 1;
+}
+
+void drawScore(gameArray* game, unsigned short score) {
+	drawDigit((char*)game->flat, ((score / 1000) % 10), W, H, 12, 53);
+	drawDigit((char*)game->flat, ((score / 100) % 10), W, H, 18, 53);
+	drawDigit((char*)game->flat, ((score / 10) % 10), W, H, 24, 53);
+	drawDigit((char*)game->flat, (score % 10), W, H, 30, 53);
 }
 
 /* window functions */
@@ -270,6 +325,11 @@ int main(void) {
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float))); //texture
 	glEnableVertexAttribArray(1);
 
+	/* game variables */
+	gameArray game;
+	rotArray rotationMatrix;
+	unsigned char playfield[22][10] = { 0 };
+
 	/* import background texture */
 	char* background = getBMPData("images/board.bmp");
 	memcpy((char*)game.flat, background, H * W * 3);
@@ -287,19 +347,21 @@ int main(void) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-
+	/* main loop variables */
 	piece p;
-	spawnPiece(&p);
+	spawnPiece(&p, (rand() % 7) + 1);
 
 	keypress.up = 0;
-	keypress.dn = 0;
-	keypress.left = 0;
-	keypress.right = 0;
 
-	/* main loop */
 	unsigned short hold = 0;
 	unsigned char fallRate = 15;
+	unsigned char fRate = 15;
 	unsigned short cycle = 0;
+	unsigned short score = 0;
+	unsigned char next = (rand() % 7) + 1;
+	drawNext(&game, rotationMatrix, next);
+
+	/* main loop */
 	while (!glfwWindowShouldClose(window)) {
 		/* texture stuff */
 		drawPlayfield(&game, playfield);
@@ -310,17 +372,28 @@ int main(void) {
 			drawPiece(p, playfield, AND, rotationMatrix);
 			if (moveDown(&p, playfield, rotationMatrix) == 1) {
 				drawPiece(p, playfield, OR, rotationMatrix);
-				for (unsigned int i = 0; i < 4; i++) { testFull(playfield); }
-				spawnPiece(&p); //if locked
+				popIfFull(playfield, &score);
+				if (p.bottom == 20) { //if piece can no longer move, end game
+					memset(playfield, 0, 22 * 10);
+					score = 0;
+				} 
+				else {
+					spawnPiece(&p, next); //if locked
+				}
+				drawScore(&game, score);
+				next = (rand() % 7) + 1;
+				drawNext(&game, rotationMatrix, next);
 			}
 		}
 
+		/* fall rate setting */
 		if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
 			fallRate = 3;
 		}
 		else {
-			fallRate = 15;
+			fallRate = fRate;
 		}
+		fRate = (fRate > 3) ? 15 - (score / 50) : 3;
 
 		/* rotation */
 		if (keypress.up == 1) {
