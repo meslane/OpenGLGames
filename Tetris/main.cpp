@@ -15,6 +15,8 @@
 #define HOLDINT 10
 #define HOLDSTEP 2
 
+#define GRAVITY 20
+
 enum drawMode {OR, AND};
 
 union gameArray {
@@ -240,11 +242,10 @@ float normalizeCoord(unsigned char coord, int dimension) {
 	return (((float)coord) / ((float)dimension / 2)) - 1;
 }
 
-void drawScore(gameArray* game, unsigned short score) {
-	drawDigit((char*)game->flat, ((score / 1000) % 10), W, H, 12, 53);
-	drawDigit((char*)game->flat, ((score / 100) % 10), W, H, 18, 53);
-	drawDigit((char*)game->flat, ((score / 10) % 10), W, H, 24, 53);
-	drawDigit((char*)game->flat, (score % 10), W, H, 30, 53);
+void drawScore(gameArray* game, unsigned short score, unsigned char digits, unsigned char x, unsigned char y) { //bottom left of last digit
+	for (unsigned int i = 0; i < digits; i++) {
+		drawDigit((char*)game->flat, ((score / (int)std::pow(10, i)) % 10), W, H, (x - (6 * i)), y);
+	}
 }
 
 /* window functions */
@@ -354,8 +355,8 @@ int main(void) {
 	keypress.up = 0;
 
 	unsigned short hold = 0;
-	unsigned char fallRate = 15;
-	unsigned char fRate = 15;
+	unsigned short fallRate = GRAVITY;
+	unsigned short fRate = GRAVITY;
 	unsigned short cycle = 0;
 	unsigned short score = 0;
 	unsigned char next = (rand() % 7) + 1;
@@ -380,7 +381,7 @@ int main(void) {
 				else {
 					spawnPiece(&p, next); //if locked
 				}
-				drawScore(&game, score);
+				drawScore(&game, score, 4, 30, 53);
 				next = (rand() % 7) + 1;
 				drawNext(&game, rotationMatrix, next);
 			}
@@ -393,7 +394,8 @@ int main(void) {
 		else {
 			fallRate = fRate;
 		}
-		fRate = (fRate > 3) ? 15 - (score / 50) : 3;
+		fRate = (fRate > 3) ? GRAVITY - (score / 50) : 3;
+		drawScore(&game, GRAVITY - fRate, 2, 24, 21);
 
 		/* rotation */
 		if (keypress.up == 1) {

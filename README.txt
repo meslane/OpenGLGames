@@ -4,8 +4,8 @@ Completed:
 -Pong
 
 In progress:
+-Tetris
 
 Planned:
--Tetris
 -Snake
--Breakout 
+-Breakout
